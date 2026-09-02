@@ -31,4 +31,8 @@ async function bootstrap() {
   console.log(`🚀 NEET Tracker Backend running on port ${port}`);
 }
 
-await bootstrap();
+if (!process.env.VERCEL) {
+  await bootstrap();
+}
+
+export { bootstrap };
