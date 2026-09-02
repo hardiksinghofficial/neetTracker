@@ -5,9 +5,5 @@
       "source": "/(.*)",
       "destination": "/api"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production",
-    "TZ": "Asia/Kolkata"
-  }
+  ]
 }
