@@ -3,16 +3,25 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Clock, Calendar, FileText, RotateCcw, LogOut, Sun, Moon, Flame, Sparkles, Award, CheckSquare, TrendingUp, Download, Upload, ShieldCheck, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { safeStorage } from '../lib/storage';
+import { healthAPI } from '../lib/api';
 import clsx from 'clsx';
 
 const MainLayout: React.FC = () => {
   const { mode, toggleMode, logout } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isBackendConnected, setIsBackendConnected] = useState<boolean | null>(null);
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved === 'dark';
     return true;
   });
+
+  useEffect(() => {
+    // Check backend health on mount
+    healthAPI.check().then((res) => {
+      setIsBackendConnected(res.connected);
+    });
+  }, []);
 
   useEffect(() => {
     if (isDark) {
@@ -110,6 +119,19 @@ const MainLayout: React.FC = () => {
               {mode === 'edit' ? 'Switch Mode' : 'Switch Mode'}
             </span>
           </button>
+
+          {/* Cloud Sync / DB Connection Indicator */}
+          <div className="mt-2 px-3 py-1.5 rounded-xl bg-[#090A10] border border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={clsx("w-2 h-2 rounded-full", isBackendConnected === true ? "bg-emerald-400 animate-pulse" : isBackendConnected === false ? "bg-amber-400" : "bg-slate-500")} />
+              <span className="text-[11px] font-semibold text-slate-300">
+                {isBackendConnected === true ? 'Neon Cloud Sync' : isBackendConnected === false ? 'Local Safe Vault' : 'Checking Cloud...'}
+              </span>
+            </div>
+            <span className="text-[9px] font-bold text-slate-500 uppercase">
+              {isBackendConnected === true ? 'Connected' : 'Offline'}
+            </span>
+          </div>
         </div>
 
         {/* Navigation Links */}
