@@ -1,0 +1,17 @@
+name: Backend 24/7 Keep-Alive Cron
+
+on:
+  schedule:
+    # Runs every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger anytime
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Live Backend API
+        run: |
+          BACKEND_URL="${{ secrets.LIVE_BACKEND_URL || 'https://neet-tracker-api.onrender.com' }}"
+          echo "Pinging $BACKEND_URL/api/health..."
+          curl -s -f -m 20 "$BACKEND_URL/api/health" || echo "Server waking up..."

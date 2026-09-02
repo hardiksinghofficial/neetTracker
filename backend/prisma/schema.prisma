@@ -1,0 +1,208 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Subject {
+  id        Int             @id @default(autoincrement())
+  name      String          @unique // Physics, Chemistry, Biology
+  chapters  Chapter[]
+  tests     Test[]
+  timetable TimetableSlot[]
+}
+
+model Chapter {
+  id          Int      @id @default(autoincrement())
+  subjectId   Int
+  name        String
+  classLevel  Int      // 11 or 12
+  weightage   Float
+  isHighYield Boolean  @default(false)
+  subGroup    String?  // Botany, Zoology for Biology
+
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  topics      Topic[]
+}
+
+enum TopicStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  REVISED
+}
+
+model Topic {
+  id               Int       @id @default(autoincrement())
+  chapterId        Int
+  name             String
+  status           TopicStatus @default(NOT_STARTED)
+  confidenceRating Int       @default(0) // 1-5
+  notes            String?
+  lastStudiedDate  DateTime?
+  lastRevisedDate  DateTime?
+
+  chapter          Chapter   @relation(fields: [chapterId], references: [id])
+  attachments      TopicAttachment[]
+  dailyLogs        DailyLogTopic[]
+  testMistakes     TestMistake[]
+  flashcards       Flashcard[] // newly added feature
+}
+
+enum AttachmentType {
+  IMAGE
+  LINK
+}
+
+model TopicAttachment {
+  id        Int            @id @default(autoincrement())
+  topicId   Int
+  type      AttachmentType
+  content   String         // Base64 or URL
+  label     String?
+  createdAt DateTime       @default(now())
+
+  topic     Topic          @relation(fields: [topicId], references: [id])
+}
+
+model DailyLog {
+  id             Int       @id @default(autoincrement())
+  date           DateTime  @unique @db.Date
+  hoursStudied   Float     @default(0)
+  checkInPhoto   String?   // Base64
+  notes          String?
+
+  topicsStudied  DailyLogTopic[]
+  pomodoros      PomodoroSession[]
+}
+
+model DailyLogTopic {
+  dailyLogId Int
+  topicId    Int
+
+  dailyLog   DailyLog @relation(fields: [dailyLogId], references: [id])
+  topic      Topic    @relation(fields: [topicId], references: [id])
+
+  @@id([dailyLogId, topicId])
+}
+
+model PomodoroSession {
+  id                   Int      @id @default(autoincrement())
+  dailyLogId           Int
+  workDurationMinutes  Int
+  breakDurationMinutes Int
+  completedAt          DateTime @default(now())
+  distractionsLogged   Int      @default(0) // new feature
+
+  dailyLog             DailyLog @relation(fields: [dailyLogId], references: [id])
+}
+
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+model TimetableSlot {
+  id        Int       @id @default(autoincrement())
+  dayOfWeek DayOfWeek
+  subjectId Int
+  startTime String    // HH:mm format
+  endTime   String    // HH:mm format
+  recurring Boolean   @default(true)
+
+  subject   Subject   @relation(fields: [subjectId], references: [id])
+}
+
+enum TestType {
+  CHAPTER_TEST
+  FULL_MOCK
+}
+
+model Test {
+  id                 Int       @id @default(autoincrement())
+  date               DateTime
+  testType           TestType
+  subjectScopeId     Int?
+  totalQuestions     Int
+  correctAnswers     Int
+  wrongAnswers       Int
+  unattempted        Int
+  computedScore      Float
+  timeTakenMinutes   Int
+  estimatedPercentile Float?
+
+  subjectScope       Subject?  @relation(fields: [subjectScopeId], references: [id])
+  mistakes           TestMistake[]
+}
+
+enum MistakeReason {
+  SILLY_MISTAKE
+  CONCEPT_GAP
+  TIME_PRESSURE
+  OTHER
+}
+
+model TestMistake {
+  id            Int             @id @default(autoincrement())
+  testId        Int
+  topicId       Int?
+  mistakeReason MistakeReason
+  notes         String?
+  attachment    String?         // Base64 or URL
+
+  test          Test            @relation(fields: [testId], references: [id])
+  topic         Topic?          @relation(fields: [topicId], references: [id])
+}
+
+enum BadgeConditionType {
+  HOURS_LOGGED
+  TESTS_TAKEN
+  SUBJECT_COMPLETED
+  STREAK_DAYS
+}
+
+model Badge {
+  id                 Int                @id @default(autoincrement())
+  name               String
+  description        String
+  conditionType      BadgeConditionType
+  conditionThreshold Int
+  earnedDate         DateTime?
+}
+
+model ParentNote {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @default(now())
+  message   String
+}
+
+model AppSettings {
+  id                          Int       @id @default(1)
+  neetExamDate                DateTime?
+  pomodoroDefaultWorkMinutes  Int       @default(25)
+  pomodoroDefaultBreakMinutes Int       @default(5)
+  familyAccessCodeHash        String
+}
+
+// New feature: Flashcards for Active Recall
+model Flashcard {
+  id              Int       @id @default(autoincrement())
+  topicId         Int
+  frontContent    String
+  backContent     String
+  nextReviewDate  DateTime  @default(now())
+  easeFactor      Float     @default(2.5)
+  interval        Int       @default(0) // days
+  repetitions     Int       @default(0)
+  
+  topic           Topic     @relation(fields: [topicId], references: [id])
+}
