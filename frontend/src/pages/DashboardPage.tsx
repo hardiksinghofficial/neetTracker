@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { Timer, Clock, Award, Heart, Flame, Target, MessageSquare, Send, BookOpen, ArrowRight, TrendingUp, ShieldCheck, Building2 } from 'lucide-react';
-import { MOCK_TESTS_DATA } from '../data/mockData';
+import { MOCK_TESTS_DATA, STUDY_ANALYTICS } from '../data/mockData';
 import { Link } from 'react-router-dom';
 import { StudyHeatmap } from '../components/StudyHeatmap';
 import { safeStorage } from '../lib/storage';

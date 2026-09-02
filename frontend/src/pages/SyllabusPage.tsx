@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Star, Sparkles, Search, CheckCircle2, Clock, RotateCcw, Circle, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { safeStorage, getCleanInitialSyllabus } from '../lib/storage';
-import type { ExtendedSyllabus, ChapterWithRating } from '../lib/storage';
+import type { ExtendedSyllabus } from '../lib/storage';
 import type { Topic } from '../data/neetSyllabus';
 import clsx from 'clsx';
 

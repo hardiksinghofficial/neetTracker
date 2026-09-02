@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { KeyRound, Eye, Zap, User, Users, Lock } from 'lucide-react';
+import { KeyRound, Eye, Zap, User, Users } from 'lucide-react';
 import clsx from 'clsx';
 
 const LoginPage: React.FC = () => {

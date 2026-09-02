@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { safeStorage, getCleanInitialChecklist } from '../lib/storage';
 import type { ChapterCheckState } from '../lib/storage';
 import { Link } from 'react-router-dom';
+import clsx from 'clsx';
 
 const DEFAULT_CHAPTER_NOTES: Record<number, string> = {
   101: '⚠️ Pay attention to Least Count formula for Vernier & Screw Gauge (Pitch/Total divisions). Zero error sign convention: +ve error -> subtract, -ve error -> add.',

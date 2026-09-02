@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Clock, Calendar, FileText, RotateCcw, LogOut, Sun, Moon, Flame, Sparkles, Award, CheckSquare, TrendingUp, Download, Upload, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Clock, Calendar, FileText, RotateCcw, LogOut, Sun, Moon, Flame, Sparkles, Award, CheckSquare, TrendingUp, Download, Upload, ShieldCheck, Target } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { STUDY_ANALYTICS } from '../data/mockData';
 import { safeStorage } from '../lib/storage';
 import clsx from 'clsx';
 

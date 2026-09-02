@@ -5,6 +5,7 @@ interface AuthContextType {
   mode: 'edit' | 'view';
   currentUser: string;
   login: (code: string, selectedMode: 'edit' | 'view') => Promise<boolean>;
+  toggleMode: () => void;
   logout: () => void;
 }
 
@@ -62,6 +63,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
+  const toggleMode = () => {
+    const nextMode = mode === 'edit' ? 'view' : 'edit';
+    setMode(nextMode);
+    setCurrentUser(nextMode === 'edit' ? 'Akarsh Singh' : 'Parent View');
+    localStorage.setItem('neet_access_mode', nextMode);
+    localStorage.setItem('neet_current_user', nextMode === 'edit' ? 'Akarsh Singh' : 'Parent View');
+  };
+
   const logout = () => {
     localStorage.removeItem('neet_is_authenticated');
     localStorage.removeItem('neet_access_mode');
@@ -71,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, mode, currentUser, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, mode, currentUser, login, toggleMode, logout }}>
       {children}
     </AuthContext.Provider>
   );

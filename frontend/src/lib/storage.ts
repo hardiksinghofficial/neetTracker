@@ -1,5 +1,5 @@
 import { NEET_SYLLABUS } from '../data/neetSyllabus';
-import type { Chapter, Topic } from '../data/neetSyllabus';
+import type { Chapter } from '../data/neetSyllabus';
 
 export interface ChapterWithRating extends Chapter {
   rating?: number;
