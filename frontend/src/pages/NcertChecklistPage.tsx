@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CheckSquare, Square, RotateCcw, Search, CheckCircle2, FileText, X, Save } from 'lucide-react';
 import { NEET_SYLLABUS } from '../data/neetSyllabus';
 import { useAuth } from '../context/AuthContext';
 import { safeStorage, getCleanInitialChecklist } from '../lib/storage';
 import type { ChapterCheckState } from '../lib/storage';
+import { syllabusAPI } from '../lib/api';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 
@@ -36,6 +37,35 @@ const NcertChecklistPage: React.FC = () => {
   const [editingChapterId, setEditingChapterId] = useState<number | null>(null);
   const [noteDraftText, setNoteDraftText] = useState('');
 
+  useEffect(() => {
+    syllabusAPI.getChapters().then((dbChapters) => {
+      if (dbChapters && Array.isArray(dbChapters) && dbChapters.length > 0) {
+        const newChecklist = { ...checklist };
+        const newNotes = { ...chapterNotes };
+        let hasChanges = false;
+        dbChapters.forEach((ch: any) => {
+          if (ch.isCompleted !== undefined || ch.isRevised !== undefined) {
+            newChecklist[ch.id] = {
+              completed: !!ch.isCompleted,
+              revised: !!ch.isRevised,
+            };
+            hasChanges = true;
+          }
+          if (ch.notes) {
+            newNotes[ch.id] = ch.notes;
+            hasChanges = true;
+          }
+        });
+        if (hasChanges) {
+          setChecklist(newChecklist);
+          setChapterNotes(newNotes);
+          safeStorage.set('neet_ncert_chapter_checklist', newChecklist);
+          safeStorage.set('neet_ncert_chapter_notes', newNotes);
+        }
+      }
+    });
+  }, []);
+
   const saveChecklist = (newChecklist: Record<number, ChapterCheckState>) => {
     setChecklist(newChecklist);
     safeStorage.set('neet_ncert_chapter_checklist', newChecklist);
@@ -49,27 +79,31 @@ const NcertChecklistPage: React.FC = () => {
   const toggleCompleted = (chapterId: number) => {
     if (mode === 'view') return;
     const current = checklist[chapterId] || { completed: false, revised: false };
+    const newCompleted = !current.completed;
     const updated = {
       ...checklist,
       [chapterId]: {
         ...current,
-        completed: !current.completed,
+        completed: newCompleted,
       },
     };
     saveChecklist(updated);
+    syllabusAPI.updateChapter(chapterId, { isCompleted: newCompleted });
   };
 
   const toggleRevised = (chapterId: number) => {
     if (mode === 'view') return;
     const current = checklist[chapterId] || { completed: false, revised: false };
+    const newRevised = !current.revised;
     const updated = {
       ...checklist,
       [chapterId]: {
         ...current,
-        revised: !current.revised,
+        revised: newRevised,
       },
     };
     saveChecklist(updated);
+    syllabusAPI.updateChapter(chapterId, { isRevised: newRevised });
   };
 
   const handleOpenNoteEditor = (chapterId: number) => {
@@ -80,12 +114,14 @@ const NcertChecklistPage: React.FC = () => {
   const handleSaveNote = () => {
     if (editingChapterId === null) return;
     const updated = { ...chapterNotes };
-    if (noteDraftText.trim()) {
-      updated[editingChapterId] = noteDraftText.trim();
+    const noteContent = noteDraftText.trim();
+    if (noteContent) {
+      updated[editingChapterId] = noteContent;
     } else {
       delete updated[editingChapterId];
     }
     saveChapterNotes(updated);
+    syllabusAPI.updateChapter(editingChapterId, { notes: noteContent });
     setEditingChapterId(null);
   };
 

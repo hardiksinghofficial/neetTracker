@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, AlertTriangle, CheckCircle2, Flame, Sparkles, Plus, Clock, LogIn, LogOut as LogOutIcon, Moon, Coffee, ShieldCheck } from 'lucide-react';
 import { StudyHeatmap } from '../components/StudyHeatmap';
 import { safeStorage } from '../lib/storage';
+import { attendanceAPI } from '../lib/api';
 import type { CheckInOutRecord } from '../lib/storage';
 import clsx from 'clsx';
 
@@ -29,9 +30,49 @@ const DailyLogPage: React.FC = () => {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayRecord = attendanceRecords.find(r => r.date === todayStr);
 
-  const saveAttendance = (records: CheckInOutRecord[]) => {
+  // Fetch live records from backend DB on load
+  useEffect(() => {
+    attendanceAPI.getAll().then((dbLogs) => {
+      if (dbLogs && Array.isArray(dbLogs) && dbLogs.length > 0) {
+        const formatted: CheckInOutRecord[] = dbLogs.map((l: any) => ({
+          id: l.id || new Date(l.date).getTime(),
+          date: typeof l.date === 'string' ? l.date.split('T')[0] : new Date(l.date).toISOString().split('T')[0],
+          checkInTimestamp: l.checkInTimestamp || (l.checkInTime ? new Date(`${l.date.split('T')[0]} ${l.checkInTime}`).getTime() : null),
+          checkInTime: l.checkInTime || '',
+          checkOutTimestamp: l.checkOutTimestamp || null,
+          checkOutTime: l.checkOutTime || null,
+          isOnBreak: !!l.isOnBreak,
+          currentBreakStartTime: l.currentBreakStartTime || null,
+          totalBreakSeconds: l.totalBreakSeconds || 0,
+          totalDurationHours: l.totalDurationHours || l.hoursStudied || 0,
+          mood: l.mood || '⚡ Highly Focused',
+          reflection: l.reflection || l.notes || '',
+        }));
+        setAttendanceRecords(formatted);
+        safeStorage.set('neet_attendance_records', formatted);
+      }
+    });
+  }, []);
+
+  const saveAttendance = (records: CheckInOutRecord[], recordToSync?: CheckInOutRecord) => {
     setAttendanceRecords(records);
     safeStorage.set('neet_attendance_records', records);
+    if (recordToSync) {
+      attendanceAPI.createOrUpdate({
+        date: recordToSync.date,
+        hoursStudied: recordToSync.totalDurationHours,
+        checkInTime: recordToSync.checkInTime,
+        checkInTimestamp: recordToSync.checkInTimestamp || undefined,
+        checkOutTime: recordToSync.checkOutTime,
+        checkOutTimestamp: recordToSync.checkOutTimestamp || undefined,
+        isOnBreak: recordToSync.isOnBreak,
+        currentBreakStartTime: recordToSync.currentBreakStartTime || undefined,
+        totalBreakSeconds: recordToSync.totalBreakSeconds,
+        totalDurationHours: recordToSync.totalDurationHours,
+        mood: recordToSync.mood,
+        reflection: recordToSync.reflection,
+      });
+    }
   };
 
   // Live Timer Tick (Updates every second & checks 10:00 PM curfew)
@@ -57,8 +98,8 @@ const DailyLogPage: React.FC = () => {
             const netSecs = Math.max(0, grossSecs - finalBreakSecs);
             const netHours = Math.round((netSecs / 3600) * 10) / 10;
 
-            const updated = prev.map(r => r.date === todayStr ? {
-              ...r,
+            const updatedRec = {
+              ...rec,
               checkOutTimestamp: closeTimestamp,
               checkOutTime: closeTime,
               isOnBreak: false,
@@ -66,8 +107,9 @@ const DailyLogPage: React.FC = () => {
               totalBreakSeconds: finalBreakSecs,
               totalDurationHours: netHours,
               reflection: 'Auto-completed at 10:00 PM Night Curfew for optimal sleep & memory retention.',
-            } : r);
-            localStorage.setItem('neet_attendance_records', JSON.stringify(updated));
+            };
+            const updated = prev.map(r => r.date === todayStr ? updatedRec : r);
+            saveAttendance(updated, updatedRec);
             return updated;
           }
           return prev;
@@ -77,7 +119,7 @@ const DailyLogPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [todayStr]);
 
-  // STAMPED REAL-TIME CLOCK IN (Non-Editable)
+  // STAMPED REAL-TIME CLOCK IN (Stored immediately in DB)
   const handleDirectRealtimeClockIn = () => {
     const now = new Date();
     const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -95,27 +137,23 @@ const DailyLogPage: React.FC = () => {
       mood: '⚡ Highly Focused',
       reflection: '',
     };
-    saveAttendance([newRecord, ...attendanceRecords.filter(r => r.date !== todayStr)]);
+    const nextRecords = [newRecord, ...attendanceRecords.filter(r => r.date !== todayStr)];
+    saveAttendance(nextRecords, newRecord);
   };
 
-  // BREAK TOGGLE: Starts Break or Resumes Study
+  // BREAK TOGGLE: Starts Break or Resumes Study (Stored immediately in DB)
   const handleToggleBreak = () => {
     if (!todayRecord || todayRecord.checkOutTime) return;
     const now = Date.now();
+    let updatedRec: CheckInOutRecord;
 
     if (!todayRecord.isOnBreak) {
       // START BREAK
-      const updated = attendanceRecords.map(r => {
-        if (r.date === todayStr) {
-          return {
-            ...r,
-            isOnBreak: true,
-            currentBreakStartTime: now,
-          };
-        }
-        return r;
-      });
-      saveAttendance(updated);
+      updatedRec = {
+        ...todayRecord,
+        isOnBreak: true,
+        currentBreakStartTime: now,
+      };
     } else {
       // END BREAK
       const breakDurationSeconds = todayRecord.currentBreakStartTime 
@@ -123,22 +161,18 @@ const DailyLogPage: React.FC = () => {
         : 0;
       const accumulatedBreaks = todayRecord.totalBreakSeconds + breakDurationSeconds;
 
-      const updated = attendanceRecords.map(r => {
-        if (r.date === todayStr) {
-          return {
-            ...r,
-            isOnBreak: false,
-            currentBreakStartTime: null,
-            totalBreakSeconds: accumulatedBreaks,
-          };
-        }
-        return r;
-      });
-      saveAttendance(updated);
+      updatedRec = {
+        ...todayRecord,
+        isOnBreak: false,
+        currentBreakStartTime: null,
+        totalBreakSeconds: accumulatedBreaks,
+      };
     }
+    const nextRecords = attendanceRecords.map(r => r.date === todayStr ? updatedRec : r);
+    saveAttendance(nextRecords, updatedRec);
   };
 
-  // STAMPED REAL-TIME CLOCK OUT (Non-Editable & Automatically Deducts Breaks)
+  // STAMPED REAL-TIME CLOCK OUT (Calculates net hours & stored in DB)
   const handleDirectRealtimeClockOut = () => {
     if (!todayRecord) return;
     const now = new Date();
@@ -154,23 +188,19 @@ const DailyLogPage: React.FC = () => {
     const netStudySeconds = Math.max(0, grossSeconds - finalBreakSecs);
     const netHours = Math.round((netStudySeconds / 3600) * 10) / 10;
 
-    const updated = attendanceRecords.map(r => {
-      if (r.date === todayStr) {
-        return {
-          ...r,
-          checkOutTimestamp: closeTimestamp,
-          checkOutTime: formattedTime,
-          isOnBreak: false,
-          currentBreakStartTime: null,
-          totalBreakSeconds: finalBreakSecs,
-          totalDurationHours: netHours,
-          reflection: 'Productive day of deep work completed.',
-        };
-      }
-      return r;
-    });
+    const updatedRec: CheckInOutRecord = {
+      ...todayRecord,
+      checkOutTimestamp: closeTimestamp,
+      checkOutTime: formattedTime,
+      isOnBreak: false,
+      currentBreakStartTime: null,
+      totalBreakSeconds: finalBreakSecs,
+      totalDurationHours: netHours,
+      reflection: 'Productive day of deep work completed.',
+    };
 
-    saveAttendance(updated);
+    const nextRecords = attendanceRecords.map(r => r.date === todayStr ? updatedRec : r);
+    saveAttendance(nextRecords, updatedRec);
     setEarnedXp(x => x + 100);
     setShowXpCelebration(true);
     setTimeout(() => setShowXpCelebration(false), 3000);
@@ -207,13 +237,12 @@ const DailyLogPage: React.FC = () => {
 
   const liveStats = getLiveStats();
 
-  const [selectedTopicsToday, setSelectedTopicsToday] = useState<string[]>([
-    'Ray Optics & Prism Formula (Physics)',
-    'Coordination Compounds VBT (Chemistry)',
-    'DNA Replication Mechanism (Biology)',
-  ]);
+  const currentStreak = attendanceRecords.filter(r => (r.totalDurationHours > 0 || r.checkInTimestamp)).length;
+
+  const [selectedTopicsToday, setSelectedTopicsToday] = useState<string[]>(() => {
+    return safeStorage.get<string[]>('neet_today_topics_mastered', []);
+  });
   const [newTopicInput, setNewTopicInput] = useState('');
-  const currentStreak = 18;
 
   // Deep Work Focus Countdown Timer
   useEffect(() => {
@@ -258,7 +287,9 @@ const DailyLogPage: React.FC = () => {
   const handleAddTopic = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTopicInput.trim()) return;
-    setSelectedTopicsToday(prev => [...prev, newTopicInput.trim()]);
+    const updated = [...selectedTopicsToday, newTopicInput.trim()];
+    setSelectedTopicsToday(updated);
+    safeStorage.set('neet_today_topics_mastered', updated);
     setNewTopicInput('');
   };
 
@@ -519,19 +550,19 @@ const DailyLogPage: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="p-3.5 rounded-2xl bg-[#131B2B] border border-slate-800">
-                <div className="text-xs font-bold text-cyan-400">Physics</div>
-                <div className="text-xl font-black text-white mt-1">2.5h</div>
-                <div className="text-[10px] text-slate-500">Ray Optics</div>
+                <div className="text-xs font-bold text-emerald-400">Net Study</div>
+                <div className="text-xl font-black text-white mt-1">{liveStats.netStr}</div>
+                <div className="text-[10px] text-slate-500">Pure focus time</div>
               </div>
               <div className="p-3.5 rounded-2xl bg-[#131B2B] border border-slate-800">
-                <div className="text-xs font-bold text-amber-400">Chemistry</div>
-                <div className="text-xl font-black text-white mt-1">2.5h</div>
-                <div className="text-[10px] text-slate-500">Coordination</div>
+                <div className="text-xs font-bold text-amber-400">Total Breaks</div>
+                <div className="text-xl font-black text-white mt-1">{liveStats.breakStr}</div>
+                <div className="text-[10px] text-slate-500">Rest intervals</div>
               </div>
               <div className="p-3.5 rounded-2xl bg-[#131B2B] border border-slate-800">
-                <div className="text-xs font-bold text-emerald-400">Biology</div>
-                <div className="text-xl font-black text-white mt-1">3.5h</div>
-                <div className="text-[10px] text-slate-500">Genetics II</div>
+                <div className="text-xs font-bold text-indigo-400">Focus Sprints</div>
+                <div className="text-xl font-black text-white mt-1">{completedPomodoros}</div>
+                <div className="text-[10px] text-slate-500">Finished today</div>
               </div>
             </div>
           </div>

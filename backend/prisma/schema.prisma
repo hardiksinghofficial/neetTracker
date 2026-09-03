@@ -25,6 +25,10 @@ model Chapter {
   weightage   Float
   isHighYield Boolean  @default(false)
   subGroup    String?  // Botany, Zoology for Biology
+  rating      Int      @default(0) // 1-5 rating
+  isCompleted Boolean  @default(false) // NCERT checklist completed
+  isRevised   Boolean  @default(false) // NCERT checklist revised
+  notes       String?  // Chapter study notes / traps
 
   subject     Subject  @relation(fields: [subjectId], references: [id])
   topics      Topic[]
@@ -71,14 +75,25 @@ model TopicAttachment {
 }
 
 model DailyLog {
-  id             Int       @id @default(autoincrement())
-  date           DateTime  @unique @db.Date
-  hoursStudied   Float     @default(0)
-  checkInPhoto   String?   // Base64
-  notes          String?
+  id                    Int       @id @default(autoincrement())
+  date                  DateTime  @unique @db.Date
+  hoursStudied          Float     @default(0)
+  checkInPhoto          String?   // Base64
+  notes                 String?
+  checkInTime           String?   // e.g. "06:15 AM"
+  checkInTimestamp      Float?    // Milliseconds epoch timestamp
+  checkOutTime          String?   // e.g. "02:30 PM"
+  checkOutTimestamp     Float?    // Milliseconds epoch timestamp
+  isOnBreak             Boolean   @default(false)
+  currentBreakStartTime Float?    // Milliseconds epoch timestamp
+  totalBreakSeconds     Int       @default(0)
+  totalDurationHours    Float     @default(0)
+  mood                  String?
+  reflection            String?
+  xp                    Int       @default(0)
 
-  topicsStudied  DailyLogTopic[]
-  pomodoros      PomodoroSession[]
+  topicsStudied         DailyLogTopic[]
+  pomodoros             PomodoroSession[]
 }
 
 model DailyLogTopic {
@@ -183,6 +198,7 @@ model Badge {
 model ParentNote {
   id        Int      @id @default(autoincrement())
   date      DateTime @default(now())
+  author    String   @default("Papa")
   message   String
 }
 

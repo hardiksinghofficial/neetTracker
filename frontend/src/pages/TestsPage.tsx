@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Plus, ChevronDown, ChevronRight, FileText, TrendingUp, XCircle, Award, Edit3, Trash2, X, Printer, Search, CheckSquare, Square, BookOpen } from 'lucide-react';
-import { MOCK_TESTS_DATA } from '../data/mockData';
 import type { MockTest } from '../data/mockData';
 import { NEET_SYLLABUS } from '../data/neetSyllabus';
 import { useAuth } from '../context/AuthContext';
+import { testsAPI } from '../lib/api';
 import clsx from 'clsx';
 
 // Compile all 79+ NCERT Chapters across Physics, Chemistry, Biology
@@ -24,8 +24,17 @@ const TestsPage: React.FC = () => {
         return parsed.map((t: MockTest) => ({ ...t, maxScore: 720 }));
       } catch (e) {}
     }
-    return MOCK_TESTS_DATA.map(t => ({ ...t, maxScore: 720 }));
+    return [];
   });
+
+  useEffect(() => {
+    testsAPI.getAll().then((dbTests) => {
+      if (dbTests && Array.isArray(dbTests) && dbTests.length > 0) {
+        setTestsList(dbTests.map(t => ({ ...t, maxScore: 720 })));
+        localStorage.setItem('neet_mock_tests_list', JSON.stringify(dbTests));
+      }
+    });
+  }, []);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [expandedTest, setExpandedTest] = useState<number | null>(1);
@@ -126,6 +135,15 @@ const TestsPage: React.FC = () => {
     };
 
     saveTests([newTest, ...testsList]);
+    testsAPI.create({
+      date: new Date().toISOString(),
+      testType: 'FULL_MOCK',
+      totalQuestions: correct + wrong + unattempted,
+      correctAnswers: correct,
+      wrongAnswers: wrong,
+      unattempted: unattempted,
+      timeTakenMinutes: timeTaken,
+    });
     setShowAddForm(false);
     setTestName('');
   };

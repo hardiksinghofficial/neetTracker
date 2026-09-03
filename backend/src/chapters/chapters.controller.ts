@@ -15,6 +15,12 @@ export class ChaptersController {
     return this.chaptersService.create(createChapterDto);
   }
 
+  @Post('bulk-sync')
+  @ApiOperation({ summary: 'Bulk sync chapters rating, completion, revision and notes' })
+  bulkSync(@Body() chapters: Array<{ id?: number; name?: string; rating?: number; isCompleted?: boolean; isRevised?: boolean; notes?: string }>) {
+    return this.chaptersService.bulkSync(chapters);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get all chapters' })
   @ApiQuery({ name: 'subjectId', required: false, type: Number })

@@ -27,7 +27,8 @@ export class DashboardService {
       daysRemainingToNEET: 265,
       curfewActive: isCurfew,
       todayDateIST: getIndianDateString(),
-      todayHoursStudied: todayLog?.hoursStudied ?? 0,
+      todayHoursStudied: todayLog?.totalDurationHours ?? todayLog?.hoursStudied ?? 0,
+      todayLog,
       recentTests,
     };
   }

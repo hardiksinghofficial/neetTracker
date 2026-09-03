@@ -29,4 +29,24 @@ export class ChaptersService {
       data
     });
   }
+
+  async bulkSync(chapters: Array<{ id?: number; name?: string; rating?: number; isCompleted?: boolean; isRevised?: boolean; notes?: string }>) {
+    const results = [];
+    for (const ch of chapters) {
+      if (ch.id || ch.name) {
+        const whereClause = ch.id ? { id: ch.id } : { name: ch.name };
+        const updated = await this.prisma.chapter.updateMany({
+          where: whereClause,
+          data: {
+            ...(ch.rating !== undefined && { rating: ch.rating }),
+            ...(ch.isCompleted !== undefined && { isCompleted: ch.isCompleted }),
+            ...(ch.isRevised !== undefined && { isRevised: ch.isRevised }),
+            ...(ch.notes !== undefined && { notes: ch.notes }),
+          }
+        });
+        results.push(updated);
+      }
+    }
+    return { success: true, count: results.length };
+  }
 }

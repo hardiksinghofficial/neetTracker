@@ -20,6 +20,12 @@ export class DailyLogsController {
     return this.dailyLogsService.getHeatmap();
   }
 
+  @Get('today')
+  @ApiOperation({ summary: 'Get today daily log' })
+  getToday() {
+    return this.dailyLogsService.getTodayLog();
+  }
+
   @Get('streak')
   @ApiOperation({ summary: 'Get streak' })
   getStreak() {

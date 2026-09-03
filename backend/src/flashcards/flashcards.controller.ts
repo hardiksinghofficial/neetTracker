@@ -8,6 +8,12 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 export class FlashcardsController {
   constructor(private readonly flashcardsService: FlashcardsService) {}
 
+  @Get()
+  @ApiOperation({ summary: 'Get all flashcards' })
+  findAll() {
+    return this.flashcardsService.findAll();
+  }
+
   @Get('due')
   @ApiOperation({ summary: 'Get due flashcards' })
   findDue() {

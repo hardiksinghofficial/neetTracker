@@ -8,40 +8,90 @@ import { getIndianDateString } from '../common/time.helper.js';
 export class DailyLogsService {
   constructor(private prisma: PrismaService, private badgesService: BadgesService) {}
 
-  findAll() {
-    return this.prisma.dailyLog.findMany({
+  async findAll() {
+    const logs = await this.prisma.dailyLog.findMany({
       orderBy: { date: 'desc' },
       include: { topicsStudied: { include: { topic: true } }, pomodoros: true }
     });
+    return Promise.all(logs.map(log => this.autoCloseIfPastCurfew(log)));
   }
 
-  findByDate(dateStr: string) {
+  async findByDate(dateStr: string) {
     const date = new Date(dateStr);
-    return this.prisma.dailyLog.findUnique({
+    const log = await this.prisma.dailyLog.findUnique({
       where: { date },
       include: { topicsStudied: { include: { topic: true } }, pomodoros: true }
     });
+    return this.autoCloseIfPastCurfew(log);
   }
 
-  getTodayLog() {
+  async getTodayLog() {
     const todayIST = getIndianDateString();
     return this.findByDate(todayIST);
   }
 
+  private async autoCloseIfPastCurfew(log: any) {
+    if (log && log.checkInTimestamp && !log.checkOutTimestamp) {
+      const logDate = new Date(log.date);
+      const curfewTime = new Date(logDate);
+      curfewTime.setHours(22, 0, 0, 0);
+      const now = new Date();
+      if (now.getTime() >= curfewTime.getTime()) {
+        const grossSeconds = Math.max(0, Math.floor((curfewTime.getTime() - log.checkInTimestamp) / 1000));
+        const netSeconds = Math.max(0, grossSeconds - (log.totalBreakSeconds || 0));
+        const totalDurationHours = Math.round((netSeconds / 3600) * 10) / 10;
+        return this.prisma.dailyLog.update({
+          where: { id: log.id },
+          data: {
+            checkOutTime: '10:00 PM',
+            checkOutTimestamp: curfewTime.getTime(),
+            isOnBreak: false,
+            currentBreakStartTime: null,
+            totalDurationHours,
+            hoursStudied: totalDurationHours,
+            reflection: 'Auto-completed at 10:00 PM Night Curfew for optimal sleep & memory retention.',
+          }
+        });
+      }
+    }
+    return log;
+  }
+
   async createOrUpdate(data: CreateDailyLogDto) {
     const date = new Date(data.date || getIndianDateString());
+    const hours = data.totalDurationHours ?? data.hoursStudied ?? 0;
     const log = await this.prisma.dailyLog.upsert({
       where: { date },
       update: {
-        hoursStudied: data.hoursStudied,
+        hoursStudied: hours,
+        totalDurationHours: hours,
         checkInPhoto: data.checkInPhoto,
         notes: data.notes,
+        checkInTime: data.checkInTime,
+        checkInTimestamp: data.checkInTimestamp,
+        checkOutTime: data.checkOutTime,
+        checkOutTimestamp: data.checkOutTimestamp,
+        isOnBreak: data.isOnBreak ?? false,
+        currentBreakStartTime: data.currentBreakStartTime,
+        totalBreakSeconds: data.totalBreakSeconds ?? 0,
+        mood: data.mood,
+        reflection: data.reflection,
       },
       create: {
         date,
-        hoursStudied: data.hoursStudied ?? 0,
+        hoursStudied: hours,
+        totalDurationHours: hours,
         checkInPhoto: data.checkInPhoto,
         notes: data.notes,
+        checkInTime: data.checkInTime,
+        checkInTimestamp: data.checkInTimestamp,
+        checkOutTime: data.checkOutTime,
+        checkOutTimestamp: data.checkOutTimestamp,
+        isOnBreak: data.isOnBreak ?? false,
+        currentBreakStartTime: data.currentBreakStartTime,
+        totalBreakSeconds: data.totalBreakSeconds ?? 0,
+        mood: data.mood,
+        reflection: data.reflection,
       }
     });
     

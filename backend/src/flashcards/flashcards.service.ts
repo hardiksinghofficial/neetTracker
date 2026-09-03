@@ -6,13 +6,21 @@ import { CreateFlashcardDto } from './dto/flashcard.dto.js';
 export class FlashcardsService {
   constructor(private prisma: PrismaService) {}
 
+  findAll() {
+    return this.prisma.flashcard.findMany({
+      include: { topic: { include: { chapter: { include: { subject: true } } } } },
+      orderBy: { id: 'asc' }
+    });
+  }
+
   findByTopic(topicId: number) {
     return this.prisma.flashcard.findMany({ where: { topicId } });
   }
 
   findDue() {
     return this.prisma.flashcard.findMany({
-      where: { nextReviewDate: { lte: new Date() } }
+      where: { nextReviewDate: { lte: new Date() } },
+      include: { topic: { include: { chapter: { include: { subject: true } } } } }
     });
   }
 

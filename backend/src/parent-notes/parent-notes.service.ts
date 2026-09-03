@@ -11,6 +11,11 @@ export class ParentNotesService {
   }
 
   create(data: CreateParentNoteDto) {
-    return this.prisma.parentNote.create({ data });
+    return this.prisma.parentNote.create({
+      data: {
+        message: data.message,
+        author: data.author || 'Papa',
+      },
+    });
   }
 }

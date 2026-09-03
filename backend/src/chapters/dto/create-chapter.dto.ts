@@ -27,4 +27,24 @@ export class CreateChapterDto {
   @IsString()
   @IsOptional()
   subGroup?: string;
+
+  @ApiPropertyOptional()
+  @IsNumber()
+  @IsOptional()
+  rating?: number;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  isCompleted?: boolean;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  isRevised?: boolean;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

@@ -1,7 +1,10 @@
 import axios from 'axios';
 
-// Connects to live Vercel Backend or environment variable
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://neet-tracke.vercel.app';
+// Connects to live backend or localhost with dynamic fallback
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+    ? 'http://localhost:3000' 
+    : 'https://neet-tracke.vercel.app');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -79,11 +82,27 @@ export const attendanceAPI = {
       return null;
     }
   },
-  createOrUpdate: async (data: { date: string; hoursStudied: number; notes?: string }) => {
+  createOrUpdate: async (data: {
+    date: string;
+    hoursStudied?: number;
+    notes?: string;
+    checkInTime?: string;
+    checkInTimestamp?: number;
+    checkOutTime?: string | null;
+    checkOutTimestamp?: number | null;
+    isOnBreak?: boolean;
+    currentBreakStartTime?: number | null;
+    totalBreakSeconds?: number;
+    totalDurationHours?: number;
+    mood?: string;
+    reflection?: string;
+    checkInPhoto?: string;
+  }) => {
     try {
       const res = await api.post('/daily-logs', data);
       return res.data;
-    } catch {
+    } catch (e) {
+      console.warn('Backend sync failed, stored in safe local vault:', e);
       return null;
     }
   },
@@ -121,6 +140,22 @@ export const syllabusAPI = {
       return res.data;
     } catch {
       return [];
+    }
+  },
+  bulkSyncChapters: async (chapters: Array<{ id?: number; name?: string; rating?: number; isCompleted?: boolean; isRevised?: boolean; notes?: string }>) => {
+    try {
+      const res = await api.post('/chapters/bulk-sync', chapters);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
+  updateChapter: async (id: number, data: { rating?: number; isCompleted?: boolean; isRevised?: boolean; notes?: string }) => {
+    try {
+      const res = await api.patch(`/chapters/${id}`, data);
+      return res.data;
+    } catch {
+      return null;
     }
   },
   updateTopicStatus: async (topicId: number, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'REVISED', confidence?: number) => {
@@ -163,9 +198,45 @@ export const parentNotesAPI = {
       return [];
     }
   },
-  create: async (data: { author: string; content: string }) => {
+  create: async (data: { author?: string; message: string }) => {
     try {
       const res = await api.post('/parent-notes', data);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
+};
+
+// 8. Flashcards Revision Deck API
+export const flashcardsAPI = {
+  getAll: async () => {
+    try {
+      const res = await api.get('/flashcards');
+      return res.data;
+    } catch {
+      return [];
+    }
+  },
+  getDue: async () => {
+    try {
+      const res = await api.get('/flashcards/due');
+      return res.data;
+    } catch {
+      return [];
+    }
+  },
+  create: async (data: { topicId: number; frontContent: string; backContent: string }) => {
+    try {
+      const res = await api.post('/flashcards', data);
+      return res.data;
+    } catch {
+      return null;
+    }
+  },
+  review: async (id: number, quality: number) => {
+    try {
+      const res = await api.post(`/flashcards/${id}/review`, { quality });
       return res.data;
     } catch {
       return null;

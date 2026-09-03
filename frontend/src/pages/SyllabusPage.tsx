@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Star, Sparkles, Search, CheckCircle2, Clock, RotateCcw, Circle, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { safeStorage, getCleanInitialSyllabus } from '../lib/storage';
 import type { ExtendedSyllabus } from '../lib/storage';
 import type { Topic } from '../data/neetSyllabus';
+import { syllabusAPI } from '../lib/api';
 import clsx from 'clsx';
 
 const SyllabusPage: React.FC = () => {
@@ -22,6 +23,38 @@ const SyllabusPage: React.FC = () => {
   const [syllabusData, setSyllabusData] = useState<ExtendedSyllabus>(() => {
     return safeStorage.get<ExtendedSyllabus>('neet_custom_syllabus_v3', getCleanInitialSyllabus());
   });
+
+  useEffect(() => {
+    syllabusAPI.getChapters().then((dbChapters) => {
+      if (dbChapters && Array.isArray(dbChapters) && dbChapters.length > 0) {
+        const updated = { ...syllabusData };
+        let hasChanges = false;
+        ['Physics', 'Chemistry', 'Biology'].forEach((subj) => {
+          updated[subj as 'Physics' | 'Chemistry' | 'Biology'].forEach(c => {
+            const dbMatch = dbChapters.find((dbc: any) => dbc.id === c.id || dbc.name === c.name);
+            if (dbMatch) {
+              if (dbMatch.rating !== undefined && dbMatch.rating !== null) {
+                c.rating = dbMatch.rating;
+                hasChanges = true;
+              }
+              if (dbMatch.isCompleted !== undefined && dbMatch.isCompleted !== null) {
+                c.isCompleted = !!dbMatch.isCompleted;
+                hasChanges = true;
+              }
+              if (dbMatch.isRevised !== undefined && dbMatch.isRevised !== null) {
+                c.isRevised = !!dbMatch.isRevised;
+                hasChanges = true;
+              }
+            }
+          });
+        });
+        if (hasChanges) {
+          setSyllabusData(updated);
+          safeStorage.set('neet_custom_syllabus_v3', updated);
+        }
+      }
+    });
+  }, []);
 
   const saveProgress = (newData: ExtendedSyllabus) => {
     setSyllabusData(newData);
@@ -51,6 +84,7 @@ const SyllabusPage: React.FC = () => {
     if (ch) {
       ch.rating = rating;
       saveProgress(updated);
+      syllabusAPI.updateChapter(chapterId, { rating });
     }
   };
 
@@ -66,6 +100,7 @@ const SyllabusPage: React.FC = () => {
         ch.topics.forEach(t => { if (t.status === 'Not Started') t.status = 'Completed'; });
       }
       saveProgress(updated);
+      syllabusAPI.updateChapter(chapterId, { isCompleted: ch.isCompleted });
     }
   };
 
@@ -78,6 +113,7 @@ const SyllabusPage: React.FC = () => {
     if (ch) {
       ch.isRevised = !ch.isRevised;
       saveProgress(updated);
+      syllabusAPI.updateChapter(chapterId, { isRevised: ch.isRevised });
     }
   };
 

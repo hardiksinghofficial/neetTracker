@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RotateCcw, Zap } from 'lucide-react';
 import { FLASHCARDS_DECK } from '../data/mockData';
+import { flashcardsAPI, syllabusAPI } from '../lib/api';
 import clsx from 'clsx';
 
 const RevisionPage: React.FC = () => {
@@ -10,33 +11,72 @@ const RevisionPage: React.FC = () => {
   const [cardIndex, setCardIndex] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
   const [sessionXp, setSessionXp] = useState(0);
+  const [cardsList, setCardsList] = useState<any[]>(FLASHCARDS_DECK);
+  const [dbChapters, setDbChapters] = useState<any[]>([]);
 
-  const filteredCards = FLASHCARDS_DECK.filter(c => selectedSubject === 'All' || c.subject === selectedSubject);
-  const currentCard = filteredCards[cardIndex % filteredCards.length] || FLASHCARDS_DECK[0];
+  useEffect(() => {
+    flashcardsAPI.getAll().then((dbCards) => {
+      if (dbCards && Array.isArray(dbCards) && dbCards.length > 0) {
+        setCardsList(dbCards.map((c: any) => ({
+          id: c.id,
+          subject: c.topic?.chapter?.subject?.name || 'Biology',
+          chapter: c.topic?.chapter?.name || 'NCERT Concepts',
+          front: c.frontContent,
+          back: c.backContent,
+          highYield: true,
+        })));
+      }
+    });
 
-  const handleNextCard = (confidence: 'Again' | 'Hard' | 'Good' | 'Easy') => {
+    syllabusAPI.getChapters().then((ch) => {
+      if (ch && Array.isArray(ch)) {
+        setDbChapters(ch);
+      }
+    });
+  }, []);
+
+  const filteredCards = cardsList.filter(c => selectedSubject === 'All' || c.subject === selectedSubject);
+  const currentCard = filteredCards[cardIndex % (filteredCards.length || 1)] || FLASHCARDS_DECK[0];
+
+  const handleNextCard = async (confidence: 'Again' | 'Hard' | 'Good' | 'Easy') => {
     setIsFlipped(false);
     setReviewedCount(r => r + 1);
     setSessionXp(x => x + (confidence === 'Easy' ? 15 : 10));
+
+    const quality = confidence === 'Easy' ? 5 : confidence === 'Good' ? 4 : confidence === 'Hard' ? 2 : 1;
+    if (currentCard.id) {
+      await flashcardsAPI.review(currentCard.id, quality);
+    }
+
     setTimeout(() => {
-      setCardIndex((prev) => (prev + 1) % filteredCards.length);
+      setCardIndex((prev) => (prev + 1) % (filteredCards.length || 1));
     }, 250);
   };
 
-  const urgencyBuckets = {
-    overdue30: [
-      { id: 1, name: 'Cell Cycle & Cell Division', subject: 'Biology', weightage: 6.0, reason: 'High weightage & last studied 34 days ago' },
-      { id: 2, name: 'Rotational Motion: Moment of Inertia', subject: 'Physics', weightage: 6.0, reason: 'Frequent errors in Torque calculation' },
-    ],
-    overdue14: [
-      { id: 3, name: 'Chemical Bonding & MOT', subject: 'Chemistry', weightage: 7.5, reason: 'Bond order & magnetic character questions' },
-      { id: 4, name: 'Current Electricity: Kirchhoff Laws', subject: 'Physics', weightage: 7.0, reason: 'Complex bridge circuits practice due' },
-    ],
-    overdue7: [
-      { id: 5, name: 'Molecular Genetics: Lac Operon', subject: 'Biology', weightage: 9.0, reason: 'Crucial 4-mark NCERT diagram review' },
-      { id: 6, name: 'Aldehydes & Ketones: Name Reactions', subject: 'Chemistry', weightage: 7.5, reason: 'Aldol & Cannizzaro mechanisms' },
-    ],
-  };
+  const urgencyBuckets = useMemo(() => {
+    const completed = dbChapters.filter(c => c.isCompleted && !c.isRevised);
+    if (completed.length === 0) {
+      return {
+        overdue30: [
+          { id: 1, name: 'Cell Cycle & Cell Division', subject: 'Biology', weightage: 6.0, reason: 'High weightage & last studied 34 days ago' },
+          { id: 2, name: 'Rotational Motion: Moment of Inertia', subject: 'Physics', weightage: 6.0, reason: 'Frequent errors in Torque calculation' },
+        ],
+        overdue14: [
+          { id: 3, name: 'Chemical Bonding & MOT', subject: 'Chemistry', weightage: 7.5, reason: 'Bond order & magnetic character questions' },
+          { id: 4, name: 'Current Electricity: Kirchhoff Laws', subject: 'Physics', weightage: 7.0, reason: 'Complex bridge circuits practice due' },
+        ],
+        overdue7: [
+          { id: 5, name: 'Molecular Genetics: Lac Operon', subject: 'Biology', weightage: 9.0, reason: 'Crucial 4-mark NCERT diagram review' },
+          { id: 6, name: 'Aldehydes & Ketones: Name Reactions', subject: 'Chemistry', weightage: 7.5, reason: 'Aldol & Cannizzaro mechanisms' },
+        ],
+      };
+    }
+    return {
+      overdue30: completed.slice(0, 2).map((c, i) => ({ id: c.id || i, name: c.name, subject: c.subject?.name || 'Biology', weightage: c.weightage || 6.0, reason: 'Completed chapter due for 30d spaced recall' })),
+      overdue14: completed.slice(2, 4).map((c, i) => ({ id: c.id || i, name: c.name, subject: c.subject?.name || 'Chemistry', weightage: c.weightage || 7.0, reason: 'High-yield conceptual revision due' })),
+      overdue7: completed.slice(4, 6).map((c, i) => ({ id: c.id || i, name: c.name, subject: c.subject?.name || 'Physics', weightage: c.weightage || 5.0, reason: 'Fresh 7d review cycle' })),
+    };
+  }, [dbChapters]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
@@ -184,7 +224,7 @@ const RevisionPage: React.FC = () => {
               <div className="text-[11px] font-extrabold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" /> Overdue (30+ Days Since Last Study)
               </div>
-              {urgencyBuckets.overdue30.map((item) => (
+              {urgencyBuckets.overdue30.map((item: any) => (
                 <div key={item.id} className="p-3.5 rounded-2xl bg-[#131B2B] border border-rose-950/60 flex justify-between items-start gap-2">
                   <div>
                     <div className="font-bold text-white text-xs">{item.name}</div>
@@ -202,7 +242,7 @@ const RevisionPage: React.FC = () => {
               <div className="text-[11px] font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-amber-400" /> Due Soon (14+ Days)
               </div>
-              {urgencyBuckets.overdue14.map((item) => (
+              {urgencyBuckets.overdue14.map((item: any) => (
                 <div key={item.id} className="p-3.5 rounded-2xl bg-[#131B2B] border border-amber-950/60 flex justify-between items-start gap-2">
                   <div>
                     <div className="font-bold text-white text-xs">{item.name}</div>
@@ -220,7 +260,7 @@ const RevisionPage: React.FC = () => {
               <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" /> Fresh Review (7 Days)
               </div>
-              {urgencyBuckets.overdue7.map((item) => (
+              {urgencyBuckets.overdue7.map((item: any) => (
                 <div key={item.id} className="p-3.5 rounded-2xl bg-[#131B2B] border border-emerald-950/60 flex justify-between items-start gap-2">
                   <div>
                     <div className="font-bold text-white text-xs">{item.name}</div>

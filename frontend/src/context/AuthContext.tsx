@@ -64,11 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const toggleMode = () => {
-    const nextMode = mode === 'edit' ? 'view' : 'edit';
-    setMode(nextMode);
-    setCurrentUser(nextMode === 'edit' ? 'Akarsh Singh' : 'Parent View');
-    localStorage.setItem('neet_access_mode', nextMode);
-    localStorage.setItem('neet_current_user', nextMode === 'edit' ? 'Akarsh Singh' : 'Parent View');
+    // For security: switching modes requires logging in with the appropriate credentials
+    logout();
   };
 
   const logout = () => {
