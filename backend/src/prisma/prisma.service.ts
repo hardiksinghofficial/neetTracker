@@ -3,6 +3,10 @@ import { PrismaClient } from '@prisma/client';
 
 const FALLBACK_DATABASE_URL = 'postgresql://neondb_owner:npg_XF8rY4vMkgqG@ep-bitter-wave-ayo258p8.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require';
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = FALLBACK_DATABASE_URL;
+}
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
