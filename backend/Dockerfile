@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm ci
+RUN npm install
 RUN npx prisma generate
 
 COPY . .
@@ -32,7 +32,7 @@ COPY --chown=node:node prisma ./prisma/
 
 USER node
 
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 RUN npx prisma generate
 
 COPY --chown=node:node --from=builder /app/dist ./dist
