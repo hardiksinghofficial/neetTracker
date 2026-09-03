@@ -29,6 +29,23 @@ async function bootstrap() {
   const port = process.env.PORT || 3000;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 NEET Tracker Backend running on port ${port}`);
+
+  // Gentle Render Keepalive: 1 gentle health check ping every 14 minutes (4 pings/hour)
+  const renderUrl = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
+  if (renderUrl) {
+    const PING_INTERVAL = 14 * 60 * 1000; // 14 mins (Render sleeps at 15 mins)
+    setInterval(async () => {
+      try {
+        const url = `${renderUrl.replace(/\/$/, '')}/health`;
+        const res = await fetch(url);
+        if (res.ok) {
+          console.log(`[Keepalive] Gentle health check OK at ${new Date().toISOString()}`);
+        }
+      } catch {
+        // Silently continue
+      }
+    }, PING_INTERVAL);
+  }
 }
 
 if (!process.env.VERCEL) {
