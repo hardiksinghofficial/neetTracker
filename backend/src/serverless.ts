@@ -8,6 +8,17 @@ import express from 'express';
 const server = express();
 let isInitialized = false;
 
+// Handle CORS and preflight OPTIONS globally before Nest routing
+server.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-access-code, x-access-mode');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 async function bootstrapServerless() {
   if (!isInitialized) {
     const app = await NestFactory.create(AppModule, new ExpressAdapter(server));
@@ -15,7 +26,7 @@ async function bootstrapServerless() {
     app.enableCors({
       origin: '*',
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'x-access-code', 'x-access-mode'],
+      allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'x-access-code', 'x-access-mode'],
     });
 
     app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
