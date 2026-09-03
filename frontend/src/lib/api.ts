@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-// Connects to live backend or localhost with dynamic fallback
+// Connects to live backend on Render or localhost with dynamic fallback
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
     ? 'http://localhost:3000' 
-    : 'https://neet-tracke.vercel.app');
+    : 'https://neettracker.onrender.com');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
