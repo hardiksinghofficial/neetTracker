@@ -3,9 +3,15 @@ import { PrismaClient } from '@prisma/client';
 
 const FALLBACK_DATABASE_URL = 'postgresql://neondb_owner:npg_XF8rY4vMkgqG@ep-bitter-wave-ayo258p8.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require';
 
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = FALLBACK_DATABASE_URL;
-}
+const isValidPostgresUrl = (url?: string): boolean => {
+  return Boolean(url && url.startsWith('postgresql://') && !url.includes('localhost') && !url.includes('127.0.0.1'));
+};
+
+const activeDatabaseUrl = isValidPostgresUrl(process.env.DATABASE_URL) 
+  ? process.env.DATABASE_URL! 
+  : FALLBACK_DATABASE_URL;
+
+process.env.DATABASE_URL = activeDatabaseUrl;
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
@@ -13,7 +19,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     super({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL || FALLBACK_DATABASE_URL,
+          url: activeDatabaseUrl,
         },
       },
     });
