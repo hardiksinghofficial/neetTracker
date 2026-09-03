@@ -23,11 +23,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 1. Health & Server Connection Check
+// 1. Health & Server Connection Check (Using /status to avoid adblocker ERR_BLOCKED_BY_CLIENT)
 export const healthAPI = {
   check: async () => {
     try {
-      const res = await api.get('/health');
+      const res = await api.get('/status');
       return { connected: true, data: res.data };
     } catch {
       return { connected: false, data: null };
