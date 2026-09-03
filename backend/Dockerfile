@@ -12,33 +12,31 @@ RUN npx prisma generate
 COPY . .
 RUN npm run build
 
-# Stage 2: Production Runner for Hugging Face Spaces & Cloud
+# Stage 2: Production Runner for Render, Hugging Face & Cloud
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Hugging Face Spaces port & non-root user (UID 1000)
 ENV NODE_ENV=production
-ENV PORT=7860
+ENV PORT=10000
 
 # Install OpenSSL for Prisma
 RUN apk add --no-cache openssl
 
-# Create non-root user for Hugging Face (UID 1000)
-RUN adduser -D -u 1000 appuser && \
-    mkdir -p /app/data && \
-    chown -R appuser:appuser /app
+# Prepare app directory for standard node user (UID 1000)
+RUN mkdir -p /app/data && \
+    chown -R node:node /app
 
-COPY --chown=appuser:appuser package*.json ./
-COPY --chown=appuser:appuser prisma ./prisma/
+COPY --chown=node:node package*.json ./
+COPY --chown=node:node prisma ./prisma/
 
-USER appuser
+USER node
 
 RUN npm ci --omit=dev
 RUN npx prisma generate
 
-COPY --chown=appuser:appuser --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/dist ./dist
 
-EXPOSE 7860
+EXPOSE 10000
 
 CMD ["node", "dist/main.js"]
