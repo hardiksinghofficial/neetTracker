@@ -24,19 +24,29 @@ export class TestsService {
     return test;
   }
 
-  findAll(testType?: TestType, subjectScopeId?: number) {
-    const where: any = {};
-    if (testType) where.testType = testType;
-    if (subjectScopeId) where.subjectScopeId = subjectScopeId;
-    
-    return this.prisma.test.findMany({ where, orderBy: { date: 'desc' } });
+  async findAll(testType?: TestType, subjectScopeId?: number) {
+    try {
+      const where: any = {};
+      if (testType) where.testType = testType;
+      if (subjectScopeId) where.subjectScopeId = subjectScopeId;
+      
+      return await this.prisma.test.findMany({ where, orderBy: { date: 'desc' } });
+    } catch (e: any) {
+      console.error('Error in TestsService.findAll():', e);
+      return [];
+    }
   }
 
-  findOne(id: number) {
-    return this.prisma.test.findUnique({
-      where: { id },
-      include: { mistakes: true, subjectScope: true }
-    });
+  async findOne(id: number) {
+    try {
+      return await this.prisma.test.findUnique({
+        where: { id },
+        include: { mistakes: true, subjectScope: true }
+      });
+    } catch (e: any) {
+      console.error('Error in TestsService.findOne():', e);
+      return null;
+    }
   }
 
   async getScoreTrends() {

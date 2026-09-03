@@ -9,20 +9,28 @@ export class DailyLogsService {
   constructor(private prisma: PrismaService, private badgesService: BadgesService) {}
 
   async findAll() {
-    const logs = await this.prisma.dailyLog.findMany({
-      orderBy: { date: 'desc' },
-      include: { topicsStudied: { include: { topic: true } }, pomodoros: true }
-    });
-    return Promise.all(logs.map(log => this.autoCloseIfPastCurfew(log)));
+    try {
+      const logs = await this.prisma.dailyLog.findMany({
+        orderBy: { date: 'desc' },
+      });
+      return Promise.all(logs.map(log => this.autoCloseIfPastCurfew(log)));
+    } catch (e: any) {
+      console.error('Error in DailyLogsService.findAll():', e);
+      return [];
+    }
   }
 
   async findByDate(dateStr: string) {
-    const date = new Date(dateStr);
-    const log = await this.prisma.dailyLog.findUnique({
-      where: { date },
-      include: { topicsStudied: { include: { topic: true } }, pomodoros: true }
-    });
-    return this.autoCloseIfPastCurfew(log);
+    try {
+      const date = new Date(dateStr);
+      const log = await this.prisma.dailyLog.findUnique({
+        where: { date },
+      });
+      return this.autoCloseIfPastCurfew(log);
+    } catch (e: any) {
+      console.error('Error in DailyLogsService.findByDate():', e);
+      return null;
+    }
   }
 
   async getTodayLog() {

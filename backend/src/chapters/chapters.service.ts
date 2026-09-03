@@ -11,16 +11,26 @@ export class ChaptersService {
     return this.prisma.chapter.create({ data });
   }
 
-  findAll(subjectId?: number) {
-    const where = subjectId ? { subjectId } : {};
-    return this.prisma.chapter.findMany({ where });
+  async findAll(subjectId?: number) {
+    try {
+      const where = subjectId ? { subjectId } : {};
+      return await this.prisma.chapter.findMany({ where });
+    } catch (e: any) {
+      console.error('Error in ChaptersService.findAll():', e);
+      return [];
+    }
   }
 
-  findOne(id: number) {
-    return this.prisma.chapter.findUnique({
-      where: { id },
-      include: { topics: true }
-    });
+  async findOne(id: number) {
+    try {
+      return await this.prisma.chapter.findUnique({
+        where: { id },
+        include: { topics: true }
+      });
+    } catch (e: any) {
+      console.error('Error in ChaptersService.findOne():', e);
+      return null;
+    }
   }
 
   update(id: number, data: UpdateChapterDto) {

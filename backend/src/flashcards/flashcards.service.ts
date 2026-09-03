@@ -6,22 +6,37 @@ import { CreateFlashcardDto } from './dto/flashcard.dto.js';
 export class FlashcardsService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.flashcard.findMany({
-      include: { topic: { include: { chapter: { include: { subject: true } } } } },
-      orderBy: { id: 'asc' }
-    });
+  async findAll() {
+    try {
+      return await this.prisma.flashcard.findMany({
+        include: { topic: { include: { chapter: { include: { subject: true } } } } },
+        orderBy: { id: 'asc' }
+      });
+    } catch (e: any) {
+      console.error('Error in FlashcardsService.findAll():', e);
+      return [];
+    }
   }
 
-  findByTopic(topicId: number) {
-    return this.prisma.flashcard.findMany({ where: { topicId } });
+  async findByTopic(topicId: number) {
+    try {
+      return await this.prisma.flashcard.findMany({ where: { topicId } });
+    } catch (e: any) {
+      console.error('Error in FlashcardsService.findByTopic():', e);
+      return [];
+    }
   }
 
-  findDue() {
-    return this.prisma.flashcard.findMany({
-      where: { nextReviewDate: { lte: new Date() } },
-      include: { topic: { include: { chapter: { include: { subject: true } } } } }
-    });
+  async findDue() {
+    try {
+      return await this.prisma.flashcard.findMany({
+        where: { nextReviewDate: { lte: new Date() } },
+        include: { topic: { include: { chapter: { include: { subject: true } } } } }
+      });
+    } catch (e: any) {
+      console.error('Error in FlashcardsService.findDue():', e);
+      return [];
+    }
   }
 
   create(data: CreateFlashcardDto) {

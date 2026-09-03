@@ -6,16 +6,26 @@ import { CreateParentNoteDto } from './dto/parent-note.dto.js';
 export class ParentNotesService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.parentNote.findMany({ orderBy: { date: 'desc' } });
+  async findAll() {
+    try {
+      return await this.prisma.parentNote.findMany({ orderBy: { date: 'desc' } });
+    } catch (e: any) {
+      console.error('Error in ParentNotesService.findAll():', e);
+      return [];
+    }
   }
 
-  create(data: CreateParentNoteDto) {
-    return this.prisma.parentNote.create({
-      data: {
-        message: data.message,
-        author: data.author || 'Papa',
-      },
-    });
+  async create(data: CreateParentNoteDto) {
+    try {
+      return await this.prisma.parentNote.create({
+        data: {
+          message: data.message,
+          author: data.author || 'Papa',
+        },
+      });
+    } catch (e: any) {
+      console.error('Error in ParentNotesService.create():', e);
+      return null;
+    }
   }
 }
